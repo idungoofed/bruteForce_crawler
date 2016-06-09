@@ -1,0 +1,3 @@
+clean:
+	rm *~ &
+	rm *.out

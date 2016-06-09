@@ -1,0 +1,6 @@
+# testing x number of threads with 16 downloads
+x=8
+base=http://puu.sh/
+declare -a ARRY=($base'0000bI.jpg' $base'0000bc.jpg' $base'0000bd.jpg' $base'0000be.jpg' $base'0000bf.jpg' $base'0000bg.jpg' $base'0000ba.jpg' $base'0000bw.jpg' $base'0000bI.jpg' $base'0000bc.jpg' $base'0000bd.jpg' $base'0000be.jpg' $base'0000bf.jpg' $base'0000bg.jpg' $base'0000ba.jpg' $base'0000bw.jpg')
+echo ${ARRY[@]} | xargs -n 1 -P $x wget --no-cookies --max-redirect=0 -U "" -q
+#echo ${ARRY[@]} | xargs -n 1 wget --no-cookies --max-redirect=0 -U "" -q
