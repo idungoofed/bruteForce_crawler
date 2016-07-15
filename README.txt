@@ -12,3 +12,7 @@ Differences:
 
 TODO:
 	Implement automated method for opening the files
+
+
+Current goals:
+	Implement for baseURL = http://puu.sh/ and nameLength = 6
