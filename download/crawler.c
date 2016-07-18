@@ -16,7 +16,9 @@ void *writeControl(void *notNeeded) {
       turn_to_write = turn_to_write%MAXTHREADS;
     }
   }
+#ifdef DEBUG
   printf("Write exiting\n");
+#endif
   pthread_exit(NULL);
 }
 
@@ -30,8 +32,6 @@ void *check(void *indexParam) {
   sysStr[cmdLen+8] = 'p';
   sysStr[cmdLen+9] = 'g';
   sysStr[cmdLen+10] = '\0';
-
-  
   
   //create the filename, store into correct position in sysStr
   int a, b, c, d, e, f;
@@ -63,7 +63,9 @@ void *check(void *indexParam) {
       }
     }
   }
+#ifdef DEBUG  
   printf("String %d exiting\n", startIndex);
+#endif
   free(sysStr);
   free(indexParam);
   if (startIndex == MAXTHREADS - 1) {
@@ -133,13 +135,15 @@ int main(int argc, char* argv[]) {
   //while stopFIle doesn't exist, wait
   while(access(stopFile, F_OK) == -1) {}
   run = 0;
+#ifdef DEBUG
   printf("run set\n");
+#endif
   //wait for threads to finish
   //while (still_running) {};
   pthread_attr_destroy(&attr);
   free(command);
   fclose(outFile);
-  printf("Program exiting\n");
+  //printf("Program exiting\n");
   //exit(EXIT_SUCCESS);
   pthread_exit(NULL);
 }
