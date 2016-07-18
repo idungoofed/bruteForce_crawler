@@ -8,4 +8,4 @@ hack:
 	$(shell touch crawler.c)
 
 clean:
-	rm *~ *.out crawler results.txt
+	rm *~ *.out crawler results.txt stop
