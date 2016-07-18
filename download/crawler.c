@@ -11,12 +11,12 @@ In essence, a more optimized version of my old puush crawler.
 **/
 
 void *writeControl(void *notNeeded) {
-  while(run) {
+  while(still_running) {
     if (turn_to_write >= MAXTHREADS) {
       turn_to_write = turn_to_write%MAXTHREADS;
     }
   }
-  printf("Program exiting\n");
+  printf("Write exiting\n");
   pthread_exit(NULL);
 }
 
@@ -30,46 +30,55 @@ void *check(void *indexParam) {
   sysStr[cmdLen+8] = 'p';
   sysStr[cmdLen+9] = 'g';
   sysStr[cmdLen+10] = '\0';
+
+  
   
   //create the filename, store into correct position in sysStr
   int a, b, c, d, e, f;
-  while (run) {
-    for (a = 0; a < 62; a+=MAXTHREADS) {
-      sysStr[cmdLen] = charSet[a];
-      for (b = 0; b < 62; b+=MAXTHREADS) {
-	sysStr[cmdLen+1] = charSet[b];
-	for (c = 0; c < 62; c+=MAXTHREADS) {
-	  sysStr[cmdLen+2] = charSet[c];
-	  for (d = 0; d < 62; d+=MAXTHREADS) {
-	    sysStr[cmdLen+3] = charSet[d];
-	    for (e = 0; e < 62; e+=MAXTHREADS) {
-	      sysStr[cmdLen+4] = charSet[e];
-	      for (f = startIndex; f < 62; f+=MAXTHREADS) {
-		sysStr[cmdLen+5] = charSet[f];
-		//system(sysStr)
-		//check
-		//wait for turn, then write
-		//remove
-		while (turn_to_write != startIndex) {}
+  for (a = 0; a < 62; a++) {
+    sysStr[cmdLen] = charSet[a];
+    for (b = 0; b < 62; b+=1) {
+      sysStr[cmdLen+1] = charSet[b];
+      for (c = 0; c < 62; c++) {
+	sysStr[cmdLen+2] = charSet[c];
+	for (d = 0; d < 62; d++) {
+	  sysStr[cmdLen+3] = charSet[d];
+	  for (e = 0; e < 62; e++) {
+	    sysStr[cmdLen+4] = charSet[e];
+	    for (f = startIndex; f < 62; f+=MAXTHREADS) {
+	      if (!run) {break;}
+	      sysStr[cmdLen+5] = charSet[f];
+	      //system(sysStr)
+	      //check
+	      //wait for turn, then write
+	      //remove
+	      while (turn_to_write != startIndex) {}
 #ifdef DEBUG
-		printf("String %d, command = %s\n", startIndex, sysStr);
+	      printf("String %d, command = %s\n", startIndex, sysStr);
 #endif
-		turn_to_write++;
-	      }
+	      turn_to_write++;
 	    }
 	  }
 	}
       }
     }
   }
+  printf("String %d exiting\n", startIndex);
   free(sysStr);
   free(indexParam);
-  if (startIndex == MAXTHREADS - 1) {exit(0);}
-  else {pthread_exit(NULL);}
+  if (startIndex == MAXTHREADS - 1) {
+    still_running = 0;
+  }
+  pthread_exit(NULL);
 }
 
 
 int main(int argc, char* argv[]) {
+
+  if (access(stopFile, F_OK) != -1) {
+    printf("Stopfile exists. Remove it and rerun the program\n");
+    exit(0);
+  }
 
   //init globals
   outFile = fopen("results.txt", "w");
@@ -102,7 +111,6 @@ int main(int argc, char* argv[]) {
   pthread_attr_t attr;
   pthread_attr_init(&attr);
   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-  //pthread_t *pthread = malloc(sizeof(pthread_t));
   pthread_t pthread;
   
 #ifdef DEBUG
@@ -125,10 +133,14 @@ int main(int argc, char* argv[]) {
   //while stopFIle doesn't exist, wait
   while(access(stopFile, F_OK) == -1) {}
   run = 0;
+  printf("run set\n");
+  //wait for threads to finish
+  //while (still_running) {};
   pthread_attr_destroy(&attr);
-  //free(pthread);
   free(command);
   fclose(outFile);
+  printf("Program exiting\n");
+  //exit(EXIT_SUCCESS);
   pthread_exit(NULL);
 }
   
