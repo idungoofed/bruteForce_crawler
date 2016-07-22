@@ -8,19 +8,8 @@
 /**
 Hardcoded for http://puu.sh/FILENAME, where FILENAME is 6 characters long.
 In essence, a more optimized version of my old puush crawler.
+Currently having each thread write to a separate file, then combining them at the end.
 **/
-
-void *writeControl(void *notNeeded) {
-  while(still_running) {
-    if (turn_to_write >= MAXTHREADS) {
-      turn_to_write = turn_to_write%MAXTHREADS;
-    }
-  }
-#ifdef DEBUG
-  printf("Write exiting\n");
-#endif
-  pthread_exit(NULL);
-}
 
 void *check(void *indexParam) {
   //initialize the string to be used with the system() call
@@ -32,6 +21,12 @@ void *check(void *indexParam) {
   sysStr[cmdLen+8] = 'p';
   sysStr[cmdLen+9] = 'g';
   sysStr[cmdLen+10] = '\0';
+  
+  //open the results file for this thread
+  //assumes MAXTHREADS < 100
+  char *fname = (char *)malloc(sizeof(char) * 6);
+  sprintf(fname, "tmp%d", startIndex);
+  FILE *outF = fopen(fname, "w"); //overwrites file if it exists
   
   //create the filename, store into correct position in sysStr
   int a, b, c, d, e, f;
@@ -52,11 +47,9 @@ void *check(void *indexParam) {
 	      //check
 	      //wait for turn, then write
 	      //remove
-	      while (turn_to_write != startIndex) {}
 #ifdef DEBUG
-	      printf("String %d, command = %s\n", startIndex, sysStr);
+	      fprintf(outF, "http://puu.sh/%.*s\n", 6, sysStr + cmdLen);
 #endif
-	      turn_to_write++;
 	    }
 	  }
 	}
@@ -66,11 +59,12 @@ void *check(void *indexParam) {
 #ifdef DEBUG  
   printf("String %d exiting\n", startIndex);
 #endif
+  //free resources
+  numRunning--;
+  fclose(outF);
+  free(fname);
   free(sysStr);
   free(indexParam);
-  if (startIndex == MAXTHREADS - 1) {
-    still_running = 0;
-  }
   pthread_exit(NULL);
 }
 
@@ -78,12 +72,11 @@ void *check(void *indexParam) {
 int main(int argc, char* argv[]) {
 
   if (access(stopFile, F_OK) != -1) {
-    printf("Stopfile exists. Remove it and rerun the program\n");
-    exit(0);
+    printf("Stopfile exists. Remove it and rerun the program.\nExiting now.\n");
+    exit(EXIT_FAILURE);
   }
 
   //init globals
-  outFile = fopen("results.txt", "w");
   //leave space in command for the URL to be copied into by the thread
 #ifdef QUIET
   command = (char *)malloc(sizeof(char) * 23);
@@ -95,7 +88,7 @@ int main(int argc, char* argv[]) {
   strcpy(command, "wget http://puu.sh/\0");
   cmdLen = 19;
 #endif
-  
+
   
   //generate charSet
   int i;
@@ -112,39 +105,54 @@ int main(int argc, char* argv[]) {
   //initialize thread stuff
   pthread_attr_t attr;
   pthread_attr_init(&attr);
-  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-  pthread_t pthread;
-  
+    
 #ifdef DEBUG
   printf("Command string: \"%s\"\n", command);
   //printf("Size = %d\n", (int)strlen(command));
 #endif
 
-  //start thread that controls writing to outFile
-  turn_to_write = 0;
-  pthread_create(&pthread, &attr, writeControl, (void *)(NULL));
-
+  //create thread array for joining on later
+  pthread_t *threadArr = (pthread_t *)malloc(sizeof(pthread_t) * MAXTHREADS);
+  
   //start download threads
   //precondition: len(charSet) > MAXTHREADS
+  numRunning = MAXTHREADS;
   for (i = 0; i < MAXTHREADS; i++) {
     int *arg = (int *)malloc(sizeof(*arg));
     *arg = i;
-    pthread_create(&pthread, &attr, check, (void *)arg);
+    pthread_create(&threadArr[i], &attr, check, (void *)arg);
   }
 
-  //while stopFIle doesn't exist, wait
-  while(access(stopFile, F_OK) == -1) {}
+  //while stopFIle doesn't exist, wait. Recheck every 5 seconds
+  //check if all threads are finished -> exit loop
+  while(access(stopFile, F_OK) == -1) {
+    if (!numRunning) {
+      break;
+    }
+    sleep(5);
+  }
   run = 0;
 #ifdef DEBUG
   printf("run set\n");
 #endif
+  
   //wait for threads to finish
-  //while (still_running) {};
+  for (i = 0; i < MAXTHREADS; i++) {
+    pthread_join(threadArr[i], NULL);
+  }
+
+  //combine results from each thread
+  system("cat tmp* > results.txt"); //this will overwrite anything in results.txt
+
+  //free resources and remove stopfile and thread tmpfiles
+  char *rmStop = (char *)malloc(sizeof(char) * (4 + strlen(stopFile)));
+  sprintf(rmStop, "rm %s", stopFile);
+  system(rmStop);
+  free(rmStop);
+  system("rm tmp*");
+  free(threadArr);
   pthread_attr_destroy(&attr);
   free(command);
-  fclose(outFile);
-  //printf("Program exiting\n");
-  //exit(EXIT_SUCCESS);
-  pthread_exit(NULL);
+  printf("Program exiting\n");
+  exit(EXIT_SUCCESS);
 }
-  
