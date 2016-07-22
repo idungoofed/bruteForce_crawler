@@ -9,6 +9,7 @@ const static char* stopFile = "stop";
 //flags for the spawned threads
 static int turn_to_write;
 static int run = 1;
+static int still_running = 1;
 
 //ensures all threads can access data
 static FILE *outFile;
