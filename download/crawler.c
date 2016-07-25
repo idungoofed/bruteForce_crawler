@@ -14,12 +14,12 @@ Currently having each thread write to a separate file, then combining them at th
 void *check(void *indexParam) {
   //initialize the string to be used with the system() call
   int startIndex = (int)(*((int *)indexParam));
-  char* sysStr = (char *)malloc(sizeof(char) * ((int)cmdLen + 11));
+  char* sysStr = (char *)malloc(sizeof(char) * ((int)cmdLen + 11)); //cmdLen + fnLen + extLen + 1
   strncpy(sysStr, command, cmdLen);
-  sysStr[cmdLen+6] = '.';
-  sysStr[cmdLen+7] = 'j';
-  sysStr[cmdLen+8] = 'p';
-  sysStr[cmdLen+9] = 'g';
+  sysStr[cmdLen+6] = '.'; 
+  sysStr[cmdLen+7] = 'j'; 
+  sysStr[cmdLen+8] = 'p'; 
+  sysStr[cmdLen+9] = 'g'; 
   sysStr[cmdLen+10] = '\0';
   
   //open the results file for this thread
@@ -27,6 +27,9 @@ void *check(void *indexParam) {
   char *fname = (char *)malloc(sizeof(char) * 6);
   sprintf(fname, "tmp%d", startIndex);
   FILE *outF = fopen(fname, "w"); //overwrites file if it exists
+
+  //result of system(sysStr)
+  int sysRes;
   
   //create the filename, store into correct position in sysStr
   int a, b, c, d, e, f;
@@ -41,21 +44,33 @@ void *check(void *indexParam) {
 	  for (e = 0; e < 62; e++) {
 	    sysStr[cmdLen+4] = charSet[e];
 	    for (f = startIndex; f < 62; f+=MAXTHREADS) {
-	      if (!run) {break;}
+	      if (!run) {
+		/*
+		  used to exit from all nested for-loops if threads are 
+		  told to exit before testing all of their possibilities
+		*/
+		goto EXIT_EARLY;
+	      }
 	      sysStr[cmdLen+5] = charSet[f];
-	      //system(sysStr)
-	      //check
-	      //wait for turn, then write
-	      //remove
+	      sysRes = system(sysStr);
+	      //if there were no errors, save the link
+	      if (sysRes == 0) {
+		//compare?
+		//yes -> download file, open comparison
+		//need to implement ^
+		fprintf(outF, "http://puu.sh/%.*s\n", 10, sysStr + cmdLen); //10 = fnLen + extLen
 #ifdef DEBUG
-	      fprintf(outF, "http://puu.sh/%.*s\n", 6, sysStr + cmdLen);
+		printf("Found file: %.6s\n", sysStr + cmdLen);
 #endif
+	      }
 	    }
 	  }
 	}
       }
     }
   }
+  //got here if the threads are told to exit (by run being set to 0)
+ EXIT_EARLY:
 #ifdef DEBUG  
   printf("String %d exiting\n", startIndex);
 #endif
@@ -79,14 +94,14 @@ int main(int argc, char* argv[]) {
   //init globals
   //leave space in command for the URL to be copied into by the thread
 #ifdef QUIET
-  command = (char *)malloc(sizeof(char) * 23);
-  strcpy(command, "wget -q http://puu.sh/\0");
-  cmdLen = 22;
+  command = (char *)malloc(sizeof(char) * 32);
+  strcpy(command, "wget -q --spider http://puu.sh/\0");
+  cmdLen = strlen(command);
 #endif
 #ifdef VERBOSE
-  command = (char *)malloc(sizeof(char) * 20);
-  strcpy(command, "wget http://puu.sh/\0");
-  cmdLen = 19;
+  command = (char *)malloc(sizeof(char) * 29);
+  strcpy(command, "wget --spider http://puu.sh/\0");
+  cmdLen = strlen(command);
 #endif
 
   
@@ -109,6 +124,7 @@ int main(int argc, char* argv[]) {
 #ifdef DEBUG
   printf("Command string: \"%s\"\n", command);
   //printf("Size = %d\n", (int)strlen(command));
+  printf("Size = %d\n", cmdLen);
 #endif
 
   //create thread array for joining on later
